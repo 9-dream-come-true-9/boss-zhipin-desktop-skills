@@ -11,10 +11,10 @@
 
 | Skill | 标识符 | 主要能力 |
 | --- | --- | --- |
-| [岗位发布](./BOSS直聘桌面端-岗位发布/) | `boss-job-publishing` | 填写、回读核验并发布 BOSS 直聘实习岗位，以及核对结果不确定的提交 |
-| [候选人初评分](./BOSS直聘桌面端-候选人初评分/) | `boss-candidate-scoring` | 读取指定岗位要求，仅从“消息”入口采集候选人，并进行有证据边界的初步评分 |
-| [候选人打招呼和消息交互](./BOSS直聘桌面端-候选人打招呼和消息交互/) | `boss-candidate-messaging` | 岗位筛选、候选人和会话读取、语义翻页、会话检查、已验证消息发送与批量编排 |
-| [索要与收取简历](./BOSS直聘桌面端-索要与收取简历能力/) | `boss-resume-request-collection` | 请求简历、发送普通邀请、接收与下载附件、文件校验、哈希计算及 PDF/DOCX 解析 |
+| [岗位发布](./01-BOSS直聘桌面端-岗位发布/) | `boss-job-publishing` | 填写、回读核验并发布 BOSS 直聘实习岗位，以及核对结果不确定的提交 |
+| [候选人初评分](./02-BOSS直聘桌面端-候选人初评分/) | `boss-candidate-scoring` | 读取指定岗位要求，仅从“消息”入口采集候选人，并进行有证据边界的初步评分 |
+| [候选人打招呼和消息交互](./03-BOSS直聘桌面端-候选人打招呼和消息交互/) | `boss-candidate-messaging` | 岗位筛选、候选人和会话读取、语义翻页、会话检查、已验证消息发送与批量编排 |
+| [索要与收取简历](./04-BOSS直聘桌面端-索要与收取简历能力/) | `boss-resume-request-collection` | 请求简历、发送普通邀请、接收与下载附件、文件校验、哈希计算及 PDF/DOCX 解析 |
 
 ## 运行环境
 
@@ -40,16 +40,16 @@ Set-Location .\boss-zhipin-desktop-skills
 $skillsRoot = 'C:\path\to\your-agent\skills'
 New-Item -ItemType Directory -Path $skillsRoot -Force | Out-Null
 
-Copy-Item -LiteralPath '.\BOSS直聘桌面端-岗位发布' `
+Copy-Item -LiteralPath '.\01-BOSS直聘桌面端-岗位发布' `
   -Destination (Join-Path $skillsRoot 'boss-job-publishing') -Recurse
 
-Copy-Item -LiteralPath '.\BOSS直聘桌面端-候选人初评分' `
+Copy-Item -LiteralPath '.\02-BOSS直聘桌面端-候选人初评分' `
   -Destination (Join-Path $skillsRoot 'boss-candidate-scoring') -Recurse
 
-Copy-Item -LiteralPath '.\BOSS直聘桌面端-候选人打招呼和消息交互' `
+Copy-Item -LiteralPath '.\03-BOSS直聘桌面端-候选人打招呼和消息交互' `
   -Destination (Join-Path $skillsRoot 'boss-candidate-messaging') -Recurse
 
-Copy-Item -LiteralPath '.\BOSS直聘桌面端-索要与收取简历能力' `
+Copy-Item -LiteralPath '.\04-BOSS直聘桌面端-索要与收取简历能力' `
   -Destination (Join-Path $skillsRoot 'boss-resume-request-collection') -Recurse
 ```
 
@@ -61,7 +61,7 @@ Copy-Item -LiteralPath '.\BOSS直聘桌面端-索要与收取简历能力' `
 
 ### 岗位发布
 
-主要脚本：[boss_jobs.py](./BOSS直聘桌面端-岗位发布/scripts/boss_jobs.py) 与 [ensure_runtime.py](./BOSS直聘桌面端-岗位发布/scripts/ensure_runtime.py)
+主要脚本：[boss_jobs.py](./01-BOSS直聘桌面端-岗位发布/scripts/boss_jobs.py) 与 [ensure_runtime.py](./01-BOSS直聘桌面端-岗位发布/scripts/ensure_runtime.py)
 
 | `BossJobs` 业务函数 / CLI | 功能 |
 | --- | --- |
@@ -80,7 +80,7 @@ Copy-Item -LiteralPath '.\BOSS直聘桌面端-索要与收取简历能力' `
 
 ### 候选人初评分
 
-主要脚本：[boss_candidate_scoring.py](./BOSS直聘桌面端-候选人初评分/scripts/boss_candidate_scoring.py)、[boss_scoring_runtime.py](./BOSS直聘桌面端-候选人初评分/scripts/boss_scoring_runtime.py) 与 [ensure_runtime.py](./BOSS直聘桌面端-候选人初评分/scripts/ensure_runtime.py)
+主要脚本：[boss_candidate_scoring.py](./02-BOSS直聘桌面端-候选人初评分/scripts/boss_candidate_scoring.py)、[boss_scoring_runtime.py](./02-BOSS直聘桌面端-候选人初评分/scripts/boss_scoring_runtime.py) 与 [ensure_runtime.py](./02-BOSS直聘桌面端-候选人初评分/scripts/ensure_runtime.py)
 
 | 主要函数 / CLI | 功能 |
 | --- | --- |
@@ -99,7 +99,7 @@ Copy-Item -LiteralPath '.\BOSS直聘桌面端-索要与收取简历能力' `
 
 ### 候选人打招呼和消息交互
 
-主要脚本：[boss_messages.py](./BOSS直聘桌面端-候选人打招呼和消息交互/scripts/boss_messages.py)
+主要脚本：[boss_messages.py](./03-BOSS直聘桌面端-候选人打招呼和消息交互/scripts/boss_messages.py)
 
 | 主要函数 / CLI | 功能 |
 | --- | --- |
@@ -127,7 +127,7 @@ RuntimeId 只在当前 UIA 会话和当前可见视口内有效。所有自定�
 
 ### 索要与收取简历
 
-主要脚本：[boss_resume.py](./BOSS直聘桌面端-索要与收取简历能力/scripts/boss_resume.py)
+主要脚本：[boss_resume.py](./04-BOSS直聘桌面端-索要与收取简历能力/scripts/boss_resume.py)
 
 | Skill 能力 / 主要函数 / CLI | 功能 |
 | --- | --- |
