@@ -85,9 +85,31 @@ $boss-job-publishing 根据我提供的完整岗位信息发布一个实习岗�
 
 [![BOSS 直聘文案策划实习岗位发布成功示例](./examples/job-publishing/BOSS直聘桌面端-文案策划｜岗位发布.png)](./examples/job-publishing/BOSS直聘桌面端-文案策划｜岗位发布.png)
 
+## 候选人初评分示例
+
+下面展示 `$boss-candidate-scoring` 对“文案策划”岗位候选人进行初步评分和综合评估的示例。公开版本中的候选人姓名均已脱敏：工作簿统一替换为 `XXX`，综合评估图使用不透明遮挡。
+
+- [下载 29 名候选人初评分工作簿（姓名脱敏版）](./examples/candidate-scoring/BOSS直聘桌面端-文案策划｜29名候选人初评分-姓名脱敏版.xlsx)
+
+[![文案策划候选人综合评估示例](./examples/candidate-scoring/文案策划｜候选人综合评估.png)](./examples/candidate-scoring/文案策划｜候选人综合评估.png)
+
+## 候选人沟通示例
+
+下面展示 `$boss-candidate-messaging` 在指定岗位下查看候选人会话、发送消息和衔接简历请求的界面示例。截图中的候选人姓名和头像已经像素化。
+
+[![BOSS 直聘候选人消息列表示例](./examples/candidate-messaging/BOSS直聘桌面端-文案策划｜候选人打招呼和消息交互.png)](./examples/candidate-messaging/BOSS直聘桌面端-文案策划｜候选人打招呼和消息交互.png)
+
+[![BOSS 直聘候选人消息交互与简历请求示例](./examples/candidate-messaging/BOSS直聘桌面端-文案策划｜候选人打招呼和消息交互2.png)](./examples/candidate-messaging/BOSS直聘桌面端-文案策划｜候选人打招呼和消息交互2.png)
+
+## 简历索要与收取示例
+
+下面展示 `$boss-resume-request-collection` 收取候选人简历附件后的文件列表示例。简历文件名中的候选人姓名已经遮挡。
+
+[![BOSS 直聘索要与收取简历示例](./examples/resume-collection/BOSS直聘桌面端-索要与收取简历能力.png)](./examples/resume-collection/BOSS直聘桌面端-索要与收取简历能力.png)
+
 ## 安全与隐私
 
-- 不要把真实简历、候选人聊天、候选人联系方式、岗位内部资料、诊断截图或运行账本提交到本仓库。
+- 提交运行示例前，应遮挡候选人姓名、联系方式等直接标识符，并确认自己有权公开剩余内容；本仓库示例中的候选人姓名已遮挡或替换为 `XXX`。
 - 只在获得授权的招聘账号、岗位和候选人范围内使用这些 Skill。
 - 发送消息、索要简历和发布岗位都会产生外部影响。运行前应理解对应 `SKILL.md` 中的提交边界、幂等控制与失败语义。
 - 候选人评分只应作为有人工复核的初步辅助，不应替代最终招聘决定，也不应使用年龄、性别、婚育、照片、住址等与岗位无关或敏感的属性。
