@@ -1,6 +1,6 @@
 # BOSS 直聘 Windows 桌面端 Skill 合集
 
-这是一组面向 Codex / ChatGPT Agent 的 Windows 桌面自动化 Skill，通过 `pywinauto` 与 Windows UI Automation（UIA）操作 BOSS 直聘桌面客户端。
+这是一组面向支持本地 Skill 或工具扩展机制的 AI 智能体的 Windows 桌面自动化能力，通过 `pywinauto` 与 Windows UI Automation（UIA）操作 BOSS 直聘桌面客户端。
 
 仓库包含四个彼此独立、可组合使用的 Skill。每个 Skill 都以自己的 `SKILL.md` 作为完整行为规范，并附带完成任务所需的脚本、Schema、模板或运行时资源。
 
@@ -34,10 +34,10 @@ git clone https://github.com/9-dream-come-true-9/boss-zhipin-desktop-skills.git
 Set-Location .\boss-zhipin-desktop-skills
 ```
 
-然后把需要的 Skill 复制到个人 Skill 目录。下面的命令不会主动删除已有目录；如果目标同名目录已经存在，请先自行检查并决定如何处理。
+然后把需要的 Skill 复制到所用智能体的 Skill 目录。不同智能体的目录位置和加载方式可能不同，请先查阅对应产品的扩展文档，并把下面的示例路径替换为实际目录。命令不会主动删除已有目录；如果目标同名目录已经存在，请先自行检查并决定如何处理。
 
 ```powershell
-$skillsRoot = Join-Path $HOME '.agents\skills'
+$skillsRoot = 'C:\path\to\your-agent\skills'
 New-Item -ItemType Directory -Path $skillsRoot -Force | Out-Null
 
 Copy-Item -LiteralPath '.\BOSS直聘桌面端-候选人初评分' `
@@ -53,11 +53,11 @@ Copy-Item -LiteralPath '.\BOSS直聘桌面端-岗位发布' `
   -Destination (Join-Path $skillsRoot 'boss-job-publishing') -Recurse
 ```
 
-Codex 通常会自动检测 Skill 变更；如果没有出现，请重启 Codex。Skill 的标准目录结构与加载方式可参考 [OpenAI 官方文档：Build skills](https://learn.chatgpt.com/docs/build-skills)。
+复制完成后，按照所用智能体的说明重新加载 Skill；部分智能体可能需要重启应用或刷新扩展目录。
 
 ## 使用示例
 
-安装后，可以在 Codex 中显式调用：
+安装后，可以通过自然语言描述任务，或在支持显式 Skill 调用的智能体中指定 Skill 标识符。下面以 `$skill-name` 形式展示调用示例；实际触发语法以所用智能体为准：
 
 ```text
 $boss-candidate-scoring 评估“产品运营实习生”岗位的新招呼候选人。
