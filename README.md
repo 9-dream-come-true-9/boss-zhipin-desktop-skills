@@ -187,7 +187,7 @@ $boss-resume-request-collection 检查指定候选人是否已经发送简历；
 
 ### 四个 Skill 完整使用结果演示
 
-- [文案策划｜候选人综合评估.png](./examples/candidate-scoring/文案策划｜候选人综合评估.png)
+- [文案策划｜候选人综合评估.png](./examples/full-workflow/文案策划｜候选人综合评估.png)
 
 ## 安全与隐私
 
