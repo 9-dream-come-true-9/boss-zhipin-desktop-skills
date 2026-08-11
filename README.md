@@ -175,7 +175,6 @@ $boss-resume-request-collection 检查指定候选人是否已经发送简历；
 ### 候选人初评分
 
 - [BOSS直聘桌面端-文案策划｜29名候选人初评分-姓名脱敏版.xlsx](./examples/candidate-scoring/BOSS直聘桌面端-文案策划｜29名候选人初评分-姓名脱敏版.xlsx)
-- [文案策划｜候选人综合评估.png](./examples/candidate-scoring/文案策划｜候选人综合评估.png)
 
 ### 候选人沟通
 
@@ -185,6 +184,10 @@ $boss-resume-request-collection 检查指定候选人是否已经发送简历；
 ### 简历索要与收取
 
 - [BOSS直聘桌面端-索要与收取简历能力.png](./examples/resume-collection/BOSS直聘桌面端-索要与收取简历能力.png)
+
+### 四个 Skill 完整使用结果演示
+
+- [文案策划｜候选人综合评估.png](./examples/candidate-scoring/文案策划｜候选人综合评估.png)
 
 ## 安全与隐私
 
