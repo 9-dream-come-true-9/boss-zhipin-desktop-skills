@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BatchReceipt",
+  "type": "object",
+  "properties": {
+    "request_id": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "MESSAGE",
+        "PLATFORM",
+        "MIXED"
+      ]
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "success": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "already_handled": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "not_received": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "commit_unknown": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "ActionReceipt.schema.json"
+      }
+    }
+  },
+  "required": [
+    "request_id",
+    "mode",
+    "total",
+    "success",
+    "already_handled",
+    "not_received",
+    "commit_unknown",
+    "failed",
+    "results"
+  ],
+  "additionalProperties": false
+}

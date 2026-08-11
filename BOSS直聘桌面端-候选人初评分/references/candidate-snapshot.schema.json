@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BOSS Message Candidate Snapshot v2 - Evidence Preserving",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_ref",
+    "source",
+    "profile",
+    "content_hash",
+    "evidence_refs"
+  ],
+  "properties": {
+    "candidate_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "candidate_key",
+        "job_key",
+        "display_name"
+      ],
+      "properties": {
+        "candidate_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "job_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "source": {
+      "enum": [
+        "messages.new_greetings",
+        "messages.current_conversation",
+        "messages.current_profile"
+      ]
+    },
+    "observed_at": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "raw_profile_texts",
+        "raw_profile_text",
+        "visible_text_count"
+      ],
+      "properties": {
+        "raw_profile_texts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "All safe visible texts from the current candidate detail/chat pane. Authoritative evidence; never truncate."
+        },
+        "raw_profile_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "visible_text_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "education": {},
+        "major": {},
+        "availability": {},
+        "desired_role": {},
+        "experience_summary": {},
+        "skills": {},
+        "latest_message_preview": {},
+        "_conversation_anchor": {}
+      }
+    },
+    "content_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

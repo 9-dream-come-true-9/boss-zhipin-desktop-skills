@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ActionReceipt",
+  "type": "object",
+  "properties": {
+    "job_key": {
+      "type": "string"
+    },
+    "candidate_key": {
+      "type": "string"
+    },
+    "candidate_name": {
+      "type": "string"
+    },
+    "request_mode": {
+      "enum": [
+        "MESSAGE",
+        "PLATFORM",
+        "NONE"
+      ]
+    },
+    "request_status": {
+      "enum": [
+        "NOT_REQUESTED",
+        "SENT_VERIFIED",
+        "REQUESTED_VERIFIED",
+        "ALREADY_HANDLED",
+        "COMMIT_UNKNOWN"
+      ]
+    },
+    "quota_consumed": {
+      "type": "boolean"
+    },
+    "resume_status": {
+      "enum": [
+        "NOT_RECEIVED",
+        "RECEIVED",
+        "DOWNLOADED",
+        "PARSED"
+      ]
+    },
+    "original_file": {
+      "type": "string"
+    },
+    "file_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sha256": {
+      "type": "string"
+    },
+    "parse_status": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array"
+    }
+  },
+  "required": [
+    "job_key",
+    "candidate_key",
+    "candidate_name",
+    "request_mode",
+    "request_status",
+    "quota_consumed",
+    "resume_status",
+    "original_file",
+    "file_size",
+    "sha256",
+    "parse_status",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "quota_consumed": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "request_mode": {
+            "const": "PLATFORM"
+          },
+          "request_status": {
+            "const": "REQUESTED_VERIFIED"
+          }
+        }
+      }
+    }
+  ]
+}

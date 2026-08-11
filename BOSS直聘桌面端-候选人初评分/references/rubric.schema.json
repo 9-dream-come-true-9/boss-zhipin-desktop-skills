@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BOSS Candidate Preliminary Scoring Rubric",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "criteria"],
+  "properties": {
+    "version": {"type": "string", "minLength": 1},
+    "source_hash": {"type": "string", "minLength": 1},
+    "requirements_hash": {"type": "string", "minLength": 1},
+    "priority_threshold": {"type": "integer", "minimum": 0, "maximum": 100, "default": 80},
+    "promising_threshold": {"type": "integer", "minimum": 0, "maximum": 100, "default": 55},
+    "minimum_coverage": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.45},
+    "criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion_id", "field", "expected"],
+        "properties": {
+          "criterion_id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "field": {
+            "enum": ["education", "major", "availability", "desired_role", "experience_summary", "skills"]
+          },
+          "expected": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["GATE", "WEIGHTED"], "default": "WEIGHTED"},
+          "weight": {"type": "number", "minimum": 0, "default": 1},
+          "value_type": {"enum": ["education_at_least", "number_at_least", "positive_term_any", "positive_term_all"]},
+          "canonical_value": {},
+          "any_terms": {"type": "array", "items": {"type": "string", "minLength": 1}, "default": []},
+          "all_terms": {"type": "array", "items": {"type": "string", "minLength": 1}, "default": []},
+          "mismatch_terms": {"type": "array", "items": {"type": "string", "minLength": 1}, "default": []},
+          "allow_partial": {"type": "boolean", "default": true}
+        }
+      }
+    }
+  }
+}
