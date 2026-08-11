@@ -106,16 +106,25 @@ Copy-Item -LiteralPath '.\04-BOSS直聘桌面端-索要与收取简历能力' `
 
 ### 索要与收取简历
 
-1. `inspect_state()` / `inspect-state`：只读检查指定候选人是否已经被索要简历、是否有待同意的附件请求，以及是否已经收到简历附件。
-2. `request_message()` / `request-message`：向指定候选人发送普通简历邀请消息，不点击平台“求简历”，也不消耗平台求简历次数。
-3. `request_platform()` / `request-platform`：使用 BOSS 平台“求简历”功能向指定候选人发起请求；该方式可能消耗平台次数。
-4. `accept_pending_attachment()` / `accept-pending`：同意候选人已经发起的待处理附件请求，并确认简历附件消息已经出现。
-5. `download_received()` / `download-received`：将候选人已经发送的原始 PDF/DOCX 简历下载到用户指定目录，并确认下载文件有效。
-6. `validate_file()` / `validate-file`：检查一个本地简历文件是否存在、非空，并且确实是与扩展名一致的 PDF 或 DOCX。
-7. `parse_file()` / `parse-file`：校验并解析一个本地 PDF/DOCX 简历，返回解析是否成功及可读取内容规模。
-8. `collect`：快捷执行“下载已收到的简历 → 校验原文件 → 解析”；没有附件时返回未收到，不会自动索要或自动同意附件。
+#### 主动索要
 
-`request-message` 和 `request-platform` 是两种不同的索要方式，不需要连续执行。所有提交动作只执行一次；结果不确定时不会自动重试。
+1. `inspect_state()` / `inspect-state`：只读检查是否已向指定候选人发送平台简历请求、是否有待同意的附件请求，以及是否已经收到简历附件。
+2. `request_platform()` / `request-platform`：点击 BOSS 平台“求简历”向指定候选人发起请求，并验证“简历请求已发送”；该方式可能消耗平台次数。
+
+#### 主动发消息索要
+
+1. `inspect_state()` / `inspect-state`：只读检查是否已向指定候选人发送平台简历请求、是否有待同意的附件请求，以及是否已经收到简历附件。
+2. `request_message()` / `request-message`：向指定候选人发送普通简历邀请消息，不点击平台“求简历”，也不消耗平台求简历次数。
+3. `accept_pending_attachment()` / `accept-pending`：候选人发起待处理的附件请求后，单次点击“同意”，并确认简历附件消息已经出现。
+
+两种索要方式共用以下收取流程：
+
+1. `download_received()` / `download-received`：将候选人已经发送的原始 PDF/DOCX 简历下载到用户指定目录，并确认下载文件有效。
+2. `validate_file()` / `validate-file`：检查一个本地简历文件是否存在、非空，并且确实是与扩展名一致的 PDF 或 DOCX。
+3. `parse_file()` / `parse-file`：校验并解析一个本地 PDF/DOCX 简历，返回解析是否成功及可读取内容规模。
+4. `collect`：快捷执行“下载已收到的简历 → 校验原文件 → 解析”；没有附件时返回未收到，不会自动索要或自动同意附件。
+
+`request-platform` 和 `request-message` 是二选一，不需要连续执行。用户只说“要简历”而未指定方式时，需要先选择其中一种。所有提交动作只执行一次；结果不确定时不会自动重试。
 
 ## 使用示例
 
