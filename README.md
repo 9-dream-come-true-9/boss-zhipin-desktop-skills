@@ -76,23 +76,33 @@ Copy-Item -LiteralPath '.\04-BOSS直聘桌面端-索要与收取简历能力' `
 
 ### 候选人打招呼和消息交互
 
-1. `open_surface()` / `open-surface`：打开 BOSS 的“推荐”或“消息”页面，不执行后续候选人操作。
-2. `select_job()` / `select-job`：在推荐页或消息页精确选择需要处理的岗位，并回读确认。
+#### 打招呼
+
+1. `open_surface()` / `open-surface`：打开 BOSS“推荐”页面，不执行后续候选人操作。
+2. `select_job()` / `select-job`：在推荐页精确选择需要处理的岗位，并回读确认。
 3. `list_candidate_cards()` / `list-candidates`：查看推荐页当前已加载的候选人及其可沟通状态。
 4. `open_candidate_card()` / `open-candidate`：打开选定候选人；如果仍处于“打招呼”状态，会先触发平台默认招呼，再进入会话。
 5. `greet_one()` / `greet-one`：在指定岗位下为一个可沟通候选人发送平台默认招呼，并继续发送用户提供的自定义消息。
 6. `batch_greet()` / `batch-greet`：对指定岗位的一批可招呼候选人执行“平台默认招呼 + 自定义消息”。
-7. `list_message_rows()` / `list-conversations`：查看消息页当前已加载的候选人会话和消息预览。
-8. `open_message_runtime()` / `open-conversation`：打开选定会话，并确认候选人、岗位和聊天窗口已经就绪。
-9. `inspect_current_chat()` / `inspect-chat`：只读查看当前联系人、岗位和已加载的聊天消息。
-10. `send_current()` / `send-current`：向当前已打开且核验一致的候选人会话发送一条自定义消息。
-11. `advance_list()` / `advance-list`：继续加载推荐候选人或消息会话列表的下一段内容，不自动打开或发送。
-12. `open_next_unread()` / `open-next-unread`：打开指定岗位当前可处理的第一个未读候选人会话。
-13. `open_conversation_exact()` / `open-conversation-exact`：根据岗位、联系人和完整最新消息打开并核验唯一会话。
-14. `reply_current()` / `reply-current`：确认仍处于指定会话后发送本次回复。
-15. `batch_message()` / `batch-message`：从指定岗位的消息列表顶部开始遍历现有会话，并向符合条件的候选人批量发送同一消息，同时避免重复发送。
+7. `advance_list()` / `advance-list`：继续加载推荐候选人列表的下一段内容，不自动打开或发送。
 
-所有自定义消息都会在发送前回读正文，并在发送后验证新消息。当前版本的 `batch-greet --limit` 可能在消息已经发出后于汇总阶段报错，因此不得因为最终报错而自动重发。
+当前版本的 `batch-greet --limit` 可能在消息已经发出后于汇总阶段报错，因此不得因为最终报错而自动重发。
+
+#### 消息交互
+
+1. `open_surface()` / `open-surface`：打开 BOSS“消息”页面，不执行后续会话操作。
+2. `select_job()` / `select-job`：在消息页精确选择需要处理的岗位，并回读确认。
+3. `list_message_rows()` / `list-conversations`：查看消息页当前已加载的候选人会话和消息预览。
+4. `open_message_runtime()` / `open-conversation`：打开选定会话，并确认候选人、岗位和聊天窗口已经就绪。
+5. `inspect_current_chat()` / `inspect-chat`：只读查看当前联系人、岗位和已加载的聊天消息。
+6. `send_current()` / `send-current`：向当前已打开且核验一致的候选人会话发送一条自定义消息。
+7. `advance_list()` / `advance-list`：继续加载消息会话列表的下一段内容，不自动打开或发送。
+8. `open_next_unread()` / `open-next-unread`：打开指定岗位当前可处理的第一个未读候选人会话。
+9. `open_conversation_exact()` / `open-conversation-exact`：根据岗位、联系人和完整最新消息打开并核验唯一会话。
+10. `reply_current()` / `reply-current`：确认仍处于指定会话后发送本次回复。
+11. `batch_message()` / `batch-message`：从指定岗位的消息列表顶部开始遍历现有会话，并向符合条件的候选人批量发送同一消息，同时避免重复发送。
+
+所有自定义消息都会在发送前回读正文，并在发送后验证新消息。
 
 ### 索要与收取简历
 
