@@ -55,95 +55,59 @@ Copy-Item -LiteralPath '.\04-BOSS直聘桌面端-索要与收取简历能力' `
 
 复制完成后，按照所用智能体的说明重新加载 Skill；部分智能体可能需要重启应用或刷新扩展目录。
 
-## Skill 功能与函数
+## BOSS 直聘功能流程
 
-下面列出当前脚本实际提供的主要业务函数和 CLI 子命令。哈希计算、文本规范化、JSON 包装和底层控件查找等内部辅助函数不单独展开；完整参数、返回值、安全失败语义和操作边界以各 Skill 的 `SKILL.md` 为准。
+下面只展示用户会直接使用的 BOSS 直聘业务功能。运行环境、依赖安装、哈希计算、评分内部规则、底层控件定位和内部授权等实现细节不在 README 中展开；完整技术规范以各 Skill 的 `SKILL.md` 为准。
 
 ### 岗位发布
 
-主要脚本：[boss_jobs.py](./01-BOSS直聘桌面端-岗位发布/scripts/boss_jobs.py) 与 [ensure_runtime.py](./01-BOSS直聘桌面端-岗位发布/scripts/ensure_runtime.py)
+1. `open_publish_form()` / `open-form`：进入并确认岗位发布表单已就绪，不填写字段、不点击最终发布。
+2. `prepare_job_post()` / `prepare`：根据用户提供的实习岗位信息填写招聘类型、岗位名称、职位描述、学历、日薪、实习要求、账号地址和电话助手，并逐字段回读确认；本步骤不执行最终发布。
+3. `get_run_status()` / `status`：查看本次岗位填写、字段核验、警告和提交状态。
+4. `publish_reviewed_job()` / `publish-reviewed`：在全部字段核验一致后执行一次最终发布，并返回发布结果。
+5. `reconcile_job_post()` / `reconcile`：当最终提交结果不确定时，只读核对是否发布成功，不重复点击发布。
 
-| `BossJobs` 业务函数 / CLI | 功能 |
-| --- | --- |
-| `ensure_runtime.py` | 校验 Python 3.11–3.13、依赖和内置 wheel SHA-256，并按需安装或重新安装固定运行包后在新进程中复验来源。 |
-| `runtime` | 返回 Python 可执行文件，并校验运行包版本、发行版版本、build ID 和 selector profile，同时报告模块来源。 |
-| `inspect_environment()` / `inspect` | 只读检查客户端安装、进程、窗口、版本和 UIA 语义可访问性。 |
-| `open_publish_form()` / `open-form` | 进入并确认岗位发布表单已就绪，不填写字段、不点击最终发布。 |
-| `prepare_job_post()` / `prepare` | 校验实习岗位 JSON，填写招聘类型、名称、描述、学历、日薪、实习月份、到岗天数、账号地址和电话助手，并逐字段回读生成 `REVIEW_READY` 记录。 |
-| `get_run_status()` / `status` | 只读查询运行状态、公司、逐字段证据、警告、提交时间和诊断目录。 |
-| `authorize_job_post()` | 仅为处于 `REVIEW_READY` 的运行签发短时内部授权令牌；令牌不作为 CLI 参数暴露。 |
-| `publish_prepared_job()` | 校验短时令牌、公司上下文和逐字段证据，再跨越一次性最终提交边界。 |
-| `publish_reviewed_job()` / `publish-reviewed` | 组合内部授权与最终发布；只有全部字段验证通过时才调用一次精确“发布”按钮。 |
-| `reconcile_job_post()` / `reconcile` | 对 `SUBMITTING` 或 `COMMIT_UNKNOWN` 运行做只读结果核对，不再次点击发布。 |
-
-该 Skill 只支持“实习生招聘”。工作地址只使用账号已有地址；不操作职位类型和职位关键词。`open-form` 可选 `--timeout`、`--artifact-dir` 与 `--no-maximize`；`prepare` 要求 `--spec-file` 和稳定的 `--idempotency-key`，并支持相同的可选参数；`status`、`publish-reviewed` 与 `reconcile` 都要求 `--run-id`。同一次岗位发布意图必须复用同一 `idempotency_key`，同一键不能绑定不同岗位内容。`prepare` 只填写并回读，`publish-reviewed` 才会产生最终外部提交；已成功或进入 `SUBMITTING` / `COMMIT_UNKNOWN` 的运行不得重新准备或再次发布，结果不确定时只能调用 `reconcile`。
+该流程只支持实习生招聘；`prepare` 负责填写和核验，`publish-reviewed` 才会执行最终发布。
 
 ### 候选人初评分
 
-主要脚本：[boss_candidate_scoring.py](./02-BOSS直聘桌面端-候选人初评分/scripts/boss_candidate_scoring.py)、[boss_scoring_runtime.py](./02-BOSS直聘桌面端-候选人初评分/scripts/boss_scoring_runtime.py) 与 [ensure_runtime.py](./02-BOSS直聘桌面端-候选人初评分/scripts/ensure_runtime.py)
+1. `read_job_context()` / `job-context`：在 BOSS“职位 → 开放中”精确找到指定岗位，只读取得岗位名称、完整职位描述、学历和实习要求。
+2. `score_query()` / `score-query`：只从该岗位的“消息”入口采集“新招呼”候选人，或按用户指定姓名查找唯一候选人，并输出有岗位证据支持的初步评分、档位和信息缺口。
 
-| 主要函数 / CLI | 功能 |
-| --- | --- |
-| `ensure_runtime.py` | 校验 Windows 与 Python 版本、必需依赖和内置 wheel SHA-256，并按需安装和复验固定运行包；支持 `--dry-run` 与 `--force`。 |
-| `runtime()` / `runtime` | 校验运行包版本、发行版版本、build ID 和 selector profile，并报告 Python 解释器与模块来源。 |
-| `read_job_context()` / `job-context` | 在“职位 → 开放中”精确定位唯一岗位，只读回读职位名称、完整描述、学历和实习要求，生成可复用的岗位上下文与 `source_hash`。 |
-| `normalize_requirements()`、`build_rubric()` | 校验从 JD 提取的要求、原文位置、字段白名单与条件类型，过滤敏感条件，并生成固定 hard gate、权重、阈值和规则版本。 |
-| `collect_message_candidates()` | 仅从“消息”入口采集候选人；批量模式使用“新招呼”，单人模式在该岗位固定消息队列中按显示名精确查找。 |
-| `candidate_information()` | 将安全可见资料按教育、经历、项目、技能、到岗、求职方向和其他事实分类，并保留原始来源文本。 |
-| `evaluate_criterion()` | 对单条岗位要求生成 `MATCH`、`PARTIAL`、`MISMATCH` 或 `UNKNOWN` 结论，并附带候选人事实、来源文本、权重和置信度。 |
-| `score_candidate()` | 对一个不可变候选人快照计算 hard gate、已知证据得分、覆盖率、档位、理由代码、信息缺口、冲突和计算公式。 |
-| `score_query()` / `score-query` | 复用岗位上下文，校验 requirements 与 JD 哈希，采集单人或批量候选人，逐人评分并汇总可解释结果；默认人数上限为 `50`。 |
-| `inspect` | 只读返回运行时来源和 BOSS 客户端环境诊断，不采集或评分候选人。 |
-
-评分时，未知信息不作为不匹配，也不进入得分分母；证据覆盖率单独计算。`job-context` 使用 `--job-query`；`score-query` 使用 `--job-query`、`--requirements-file`、`--job-context-file`，并可选 `--candidate-query` 与 `--limit`。`--limit` 默认为 `50`，有效范围为 `1–200`。该 Skill 不发消息、不求简历、不下载简历，也不访问推荐、互动或人才搜索。
+未知信息不会被当成不匹配；该流程不发消息、不索要简历，也不下载简历。
 
 ### 候选人打招呼和消息交互
 
-主要脚本：[boss_messages.py](./03-BOSS直聘桌面端-候选人打招呼和消息交互/scripts/boss_messages.py)
+1. `open_surface()` / `open-surface`：打开 BOSS 的“推荐”或“消息”页面，不执行后续候选人操作。
+2. `select_job()` / `select-job`：在推荐页或消息页精确选择需要处理的岗位，并回读确认。
+3. `list_candidate_cards()` / `list-candidates`：查看推荐页当前已加载的候选人及其可沟通状态。
+4. `open_candidate_card()` / `open-candidate`：打开选定候选人；如果仍处于“打招呼”状态，会先触发平台默认招呼，再进入会话。
+5. `greet_one()` / `greet-one`：在指定岗位下为一个可沟通候选人发送平台默认招呼，并继续发送用户提供的自定义消息。
+6. `batch_greet()` / `batch-greet`：对指定岗位的一批可招呼候选人执行“平台默认招呼 + 自定义消息”。
+7. `list_message_rows()` / `list-conversations`：查看消息页当前已加载的候选人会话和消息预览。
+8. `open_message_runtime()` / `open-conversation`：打开选定会话，并确认候选人、岗位和聊天窗口已经就绪。
+9. `inspect_current_chat()` / `inspect-chat`：只读查看当前联系人、岗位和已加载的聊天消息。
+10. `send_current()` / `send-current`：向当前已打开且核验一致的候选人会话发送一条自定义消息。
+11. `advance_list()` / `advance-list`：继续加载推荐候选人或消息会话列表的下一段内容，不自动打开或发送。
+12. `open_next_unread()` / `open-next-unread`：打开指定岗位当前可处理的第一个未读候选人会话。
+13. `open_conversation_exact()` / `open-conversation-exact`：根据岗位、联系人和完整最新消息打开并核验唯一会话。
+14. `reply_current()` / `reply-current`：确认仍处于指定会话后发送本次回复。
+15. `batch_message()` / `batch-message`：从指定岗位的消息列表顶部开始遍历现有会话，并向符合条件的候选人批量发送同一消息，同时避免重复发送。
 
-| 主要函数 / CLI | 功能 |
-| --- | --- |
-| `window()` / `inspect` | 只读检查唯一、可访问的 BOSS 主窗口和 UIA 节点。 |
-| `doc_text()` / `parse-docs` | 读取问题与回答 DOCX 的非空段落，输出当次问题消息和回答依据，不把业务内容写入 Skill。 |
-| `open_surface()` / `open-surface` | 只打开“推荐”或“消息”页面，不选择岗位、不读取列表、不发送。 |
-| `select_job()` / `select-job` | 在推荐页或消息页精确选择岗位并回读确认；同名分类无法唯一消歧时安全停止。 |
-| `list_candidate_cards()` / `list-candidates` | 只读返回推荐页当前真实可见候选人卡片的 RuntimeId、状态和文本。 |
-| `open_candidate_card()` / `open-candidate` | 按当前可见 RuntimeId 打开一个候选人卡片；若卡片仍为“打招呼”状态，会触发一次平台默认招呼并进入“继续沟通”，但不输入自定义文本。 |
-| `list_message_rows()` / `list-conversations` | 只读返回消息页当前真实可见会话行的 RuntimeId 和预览文本。 |
-| `open_message_runtime()` / `open-conversation` | 按当前可见 RuntimeId 打开会话，等待编辑器就绪，并可校验预期岗位。 |
-| `inspect_current_chat()` / `inspect-chat` | 只读返回当前联系人、岗位候选、已加载的 `mid-*` 消息容器和编辑器 ID。 |
-| `advance_list()` / `advance-list` | 通过真实滚轮和重叠视口验证推进推荐列表或消息列表，不打开条目、不发送消息。 |
-| `send_current()`、`semantic_write_and_send()` / `send-current` | 校验可选联系人与岗位，清空草稿，输入并全文回读，单次提交后验证编辑器清空和唯一新消息容器。 |
-| `greet_one()` / `greet-one` | 在指定推荐岗位下先触发一次平台默认招呼，再进入会话发送调用方提供的一条自定义消息。 |
-| `batch_greet()` / `batch-greet` | 批量处理推荐页可招呼候选人，对每人执行“平台默认招呼 + 自定义消息”；支持 `--limit` 或 `--all`，自定义消息提交状态未知时停止整批且不重发。 |
-| `batch_message()` / `batch-message` | 从消息列表顶部开始按重叠视口遍历现有会话，逐条校验联系人和岗位，并使用“岗位主体 + 联系人 + 消息摘要”持久账本跨批次防重。 |
-| `open_next_unread()` / `open-next-unread` | 打开指定岗位当前可见的第一个未读会话，并返回会话与最新候选人消息。 |
-| `open_conversation_exact()` / `open-conversation-exact` | 先精确选择岗位，再以完整最新消息在当前可见列表中确定唯一会话；打开后核验联系人标题和岗位。 |
-| `reply_current()` / `reply-current` | 确认当前编辑器仍属于指定会话后发送回复，并执行与当前会话发送相同的提交验证。 |
-
-RuntimeId 只在当前 UIA 会话和当前可见视口内有效。所有自定义文本发送都会执行正文回读和新消息容器验证；平台默认招呼通过卡片从“打招呼”变为“继续沟通”来推进，不适用自定义正文回读验证。`batch-greet --limit` 的有效范围为 `1–50`，`--all` 的安全上限为 `200`；`batch-message --limit` 的有效范围为 `1–100`，`--all` 的安全上限为 `500`。`batch-message` 的持久账本位于 Skill 目录外，不保存消息正文，账本命中的跳过项不计入实际发送数量。`parse-docs` 要求两份 DOCX 各至少有两个非空段落，并把第一段作为模板标题跳过。
-
-当前版本的 `batch-greet --limit` 在成功完成目标数量后的汇总阶段会因未定义计数变量报错。报错可能发生在外部发送已经完成之后，且最终错误响应不包含逐条结果，因此不得据此自动重跑；修复前应优先使用原子命令逐条编排。
+所有自定义消息都会在发送前回读正文，并在发送后验证新消息。当前版本的 `batch-greet --limit` 可能在消息已经发出后于汇总阶段报错，因此不得因为最终报错而自动重发。
 
 ### 索要与收取简历
 
-主要脚本：[boss_resume.py](./04-BOSS直聘桌面端-索要与收取简历能力/scripts/boss_resume.py)
+1. `inspect_state()` / `inspect-state`：只读检查指定候选人是否已经被索要简历、是否有待同意的附件请求，以及是否已经收到简历附件。
+2. `request_message()` / `request-message`：向指定候选人发送普通简历邀请消息，不点击平台“求简历”，也不消耗平台求简历次数。
+3. `request_platform()` / `request-platform`：使用 BOSS 平台“求简历”功能向指定候选人发起请求；该方式可能消耗平台次数。
+4. `accept_pending_attachment()` / `accept-pending`：同意候选人已经发起的待处理附件请求，并确认简历附件消息已经出现。
+5. `download_received()` / `download-received`：将候选人已经发送的原始 PDF/DOCX 简历下载到用户指定目录，并确认下载文件有效。
+6. `validate_file()` / `validate-file`：检查一个本地简历文件是否存在、非空，并且确实是与扩展名一致的 PDF 或 DOCX。
+7. `parse_file()` / `parse-file`：校验并解析一个本地 PDF/DOCX 简历，返回解析是否成功及可读取内容规模。
+8. `collect`：快捷执行“下载已收到的简历 → 校验原文件 → 解析”；没有附件时返回未收到，不会自动索要或自动同意附件。
 
-| Skill 能力 / 主要函数 / CLI | 功能 |
-| --- | --- |
-| `runtime` | 返回当前 Python 与 `pywinauto` 运行时信息。 |
-| `inspect_resume_state`、`inspect_state()` / `inspect-state` | 只读检查是否已发起平台简历请求、是否存在待同意附件请求，以及是否已有附件消息。 |
-| `request_resume_by_platform`、`request_platform()` / `request-platform` | 点击平台“求简历”，确认唯一授权弹窗，并验证新增“简历请求已发送”消息；该方式可能消耗平台次数。 |
-| `request_resume_by_message`、`request_message()` / `request-message` | 发送普通邀请消息；不点击“求简历”，不消耗平台次数，支持外部 UTF-8 消息文件。 |
-| `accept_pending_resume_attachment`、`accept_pending_attachment()` / `accept-pending` | 对唯一待处理附件请求点击一次“同意”，并以新增附件消息作为成功证据。 |
-| `download_received_resume`、`download_received()` / `download-received` | 下载候选人已经发送的原始 PDF/DOCX 到指定目录，并立即执行格式、大小和 SHA-256 校验。 |
-| `validate_resume_file`、`validate_file()` / `validate-file` | 校验文件存在性、大小、扩展名、真实文件签名和 SHA-256，不解析正文。 |
-| `parse_resume_file`、`parse_file()` / `parse-file` | 校验后解析 PDF 或 DOCX，返回解析状态与文本长度，不修改原件或执行宏。 |
-| `collect_received_resume` / `collect` | 当前 CLI 实际组合“下载 → 校验 → 解析”；没有附件时返回 `NOT_RECEIVED`，不会自动索要或自动同意待处理附件。 |
-
-平台请求、普通消息和同意附件都只提交一次，并在新增消息容器中验证结果；进入 `COMMIT_UNKNOWN` 后禁止自动重试。存在多个待处理请求或附件时，必须使用消息 ID 精确选择。Skill 规范描述了批量请求能力和 `BatchReceipt`，但当前脚本没有独立批量函数或 CLI；批量任务需要调用方逐个编排上述原子命令。
-
-主要 CLI 参数：状态检查使用 `--job` 与 `--candidate`；两种请求还要求稳定的 `--request-id`，普通消息可选 `--message-file`；同意附件可选 `--request-message-id`；下载和 `collect` 要求 `--output-dir`，并可选 `--attachment-message-id`；文件校验与解析使用 `--file`。平台请求和普通消息以岗位、候选人、请求模式及 `request_id` 形成持久账本键；命中已有请求或历史成功证据时不再执行外部操作。
+`request-message` 和 `request-platform` 是两种不同的索要方式，不需要连续执行。所有提交动作只执行一次；结果不确定时不会自动重试。
 
 ## 使用示例
 
