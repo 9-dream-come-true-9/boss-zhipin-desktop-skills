@@ -11,10 +11,10 @@
 
 | Skill | 标识符 | 主要能力 |
 | --- | --- | --- |
+| [岗位发布](./BOSS直聘桌面端-岗位发布/) | `boss-job-publishing` | 填写、回读核验并发布 BOSS 直聘实习岗位，以及核对结果不确定的提交 |
 | [候选人初评分](./BOSS直聘桌面端-候选人初评分/) | `boss-candidate-scoring` | 读取指定岗位要求，仅从“消息”入口采集候选人，并进行有证据边界的初步评分 |
 | [候选人打招呼和消息交互](./BOSS直聘桌面端-候选人打招呼和消息交互/) | `boss-candidate-messaging` | 岗位筛选、候选人和会话读取、语义翻页、会话检查、已验证消息发送与批量编排 |
 | [索要与收取简历](./BOSS直聘桌面端-索要与收取简历能力/) | `boss-resume-request-collection` | 请求简历、发送普通邀请、接收与下载附件、文件校验、哈希计算及 PDF/DOCX 解析 |
-| [岗位发布](./BOSS直聘桌面端-岗位发布/) | `boss-job-publishing` | 填写、回读核验并发布 BOSS 直聘实习岗位，以及核对结果不确定的提交 |
 
 ## 运行环境
 
@@ -40,6 +40,9 @@ Set-Location .\boss-zhipin-desktop-skills
 $skillsRoot = 'C:\path\to\your-agent\skills'
 New-Item -ItemType Directory -Path $skillsRoot -Force | Out-Null
 
+Copy-Item -LiteralPath '.\BOSS直聘桌面端-岗位发布' `
+  -Destination (Join-Path $skillsRoot 'boss-job-publishing') -Recurse
+
 Copy-Item -LiteralPath '.\BOSS直聘桌面端-候选人初评分' `
   -Destination (Join-Path $skillsRoot 'boss-candidate-scoring') -Recurse
 
@@ -48,9 +51,6 @@ Copy-Item -LiteralPath '.\BOSS直聘桌面端-候选人打招呼和消息交互'
 
 Copy-Item -LiteralPath '.\BOSS直聘桌面端-索要与收取简历能力' `
   -Destination (Join-Path $skillsRoot 'boss-resume-request-collection') -Recurse
-
-Copy-Item -LiteralPath '.\BOSS直聘桌面端-岗位发布' `
-  -Destination (Join-Path $skillsRoot 'boss-job-publishing') -Recurse
 ```
 
 复制完成后，按照所用智能体的说明重新加载 Skill；部分智能体可能需要重启应用或刷新扩展目录。
@@ -58,6 +58,25 @@ Copy-Item -LiteralPath '.\BOSS直聘桌面端-岗位发布' `
 ## Skill 功能与函数
 
 下面列出当前脚本实际提供的主要业务函数和 CLI 子命令。哈希计算、文本规范化、JSON 包装和底层控件查找等内部辅助函数不单独展开；完整参数、返回值、安全失败语义和操作边界以各 Skill 的 `SKILL.md` 为准。
+
+### 岗位发布
+
+主要脚本：[boss_jobs.py](./BOSS直聘桌面端-岗位发布/scripts/boss_jobs.py) 与 [ensure_runtime.py](./BOSS直聘桌面端-岗位发布/scripts/ensure_runtime.py)
+
+| `BossJobs` 业务函数 / CLI | 功能 |
+| --- | --- |
+| `ensure_runtime.py` | 校验 Python 3.11–3.13、依赖和内置 wheel SHA-256，并按需安装或重新安装固定运行包后在新进程中复验来源。 |
+| `runtime` | 返回 Python 可执行文件，并校验运行包版本、发行版版本、build ID 和 selector profile，同时报告模块来源。 |
+| `inspect_environment()` / `inspect` | 只读检查客户端安装、进程、窗口、版本和 UIA 语义可访问性。 |
+| `open_publish_form()` / `open-form` | 进入并确认岗位发布表单已就绪，不填写字段、不点击最终发布。 |
+| `prepare_job_post()` / `prepare` | 校验实习岗位 JSON，填写招聘类型、名称、描述、学历、日薪、实习月份、到岗天数、账号地址和电话助手，并逐字段回读生成 `REVIEW_READY` 记录。 |
+| `get_run_status()` / `status` | 只读查询运行状态、公司、逐字段证据、警告、提交时间和诊断目录。 |
+| `authorize_job_post()` | 仅为处于 `REVIEW_READY` 的运行签发短时内部授权令牌；令牌不作为 CLI 参数暴露。 |
+| `publish_prepared_job()` | 校验短时令牌、公司上下文和逐字段证据，再跨越一次性最终提交边界。 |
+| `publish_reviewed_job()` / `publish-reviewed` | 组合内部授权与最终发布；只有全部字段验证通过时才调用一次精确“发布”按钮。 |
+| `reconcile_job_post()` / `reconcile` | 对 `SUBMITTING` 或 `COMMIT_UNKNOWN` 运行做只读结果核对，不再次点击发布。 |
+
+该 Skill 只支持“实习生招聘”。工作地址只使用账号已有地址；不操作职位类型和职位关键词。`open-form` 可选 `--timeout`、`--artifact-dir` 与 `--no-maximize`；`prepare` 要求 `--spec-file` 和稳定的 `--idempotency-key`，并支持相同的可选参数；`status`、`publish-reviewed` 与 `reconcile` 都要求 `--run-id`。同一次岗位发布意图必须复用同一 `idempotency_key`，同一键不能绑定不同岗位内容。`prepare` 只填写并回读，`publish-reviewed` 才会产生最终外部提交；已成功或进入 `SUBMITTING` / `COMMIT_UNKNOWN` 的运行不得重新准备或再次发布，结果不确定时只能调用 `reconcile`。
 
 ### 候选人初评分
 
@@ -126,28 +145,13 @@ RuntimeId 只在当前 UIA 会话和当前可见视口内有效。所有自定�
 
 主要 CLI 参数：状态检查使用 `--job` 与 `--candidate`；两种请求还要求稳定的 `--request-id`，普通消息可选 `--message-file`；同意附件可选 `--request-message-id`；下载和 `collect` 要求 `--output-dir`，并可选 `--attachment-message-id`；文件校验与解析使用 `--file`。平台请求和普通消息以岗位、候选人、请求模式及 `request_id` 形成持久账本键；命中已有请求或历史成功证据时不再执行外部操作。
 
-### 岗位发布
-
-主要脚本：[boss_jobs.py](./BOSS直聘桌面端-岗位发布/scripts/boss_jobs.py) 与 [ensure_runtime.py](./BOSS直聘桌面端-岗位发布/scripts/ensure_runtime.py)
-
-| `BossJobs` 业务函数 / CLI | 功能 |
-| --- | --- |
-| `ensure_runtime.py` | 校验 Python 3.11–3.13、依赖和内置 wheel SHA-256，并按需安装或重新安装固定运行包后在新进程中复验来源。 |
-| `runtime` | 返回 Python 可执行文件，并校验运行包版本、发行版版本、build ID 和 selector profile，同时报告模块来源。 |
-| `inspect_environment()` / `inspect` | 只读检查客户端安装、进程、窗口、版本和 UIA 语义可访问性。 |
-| `open_publish_form()` / `open-form` | 进入并确认岗位发布表单已就绪，不填写字段、不点击最终发布。 |
-| `prepare_job_post()` / `prepare` | 校验实习岗位 JSON，填写招聘类型、名称、描述、学历、日薪、实习月份、到岗天数、账号地址和电话助手，并逐字段回读生成 `REVIEW_READY` 记录。 |
-| `get_run_status()` / `status` | 只读查询运行状态、公司、逐字段证据、警告、提交时间和诊断目录。 |
-| `authorize_job_post()` | 仅为处于 `REVIEW_READY` 的运行签发短时内部授权令牌；令牌不作为 CLI 参数暴露。 |
-| `publish_prepared_job()` | 校验短时令牌、公司上下文和逐字段证据，再跨越一次性最终提交边界。 |
-| `publish_reviewed_job()` / `publish-reviewed` | 组合内部授权与最终发布；只有全部字段验证通过时才调用一次精确“发布”按钮。 |
-| `reconcile_job_post()` / `reconcile` | 对 `SUBMITTING` 或 `COMMIT_UNKNOWN` 运行做只读结果核对，不再次点击发布。 |
-
-该 Skill 只支持“实习生招聘”。工作地址只使用账号已有地址；不操作职位类型和职位关键词。`open-form` 可选 `--timeout`、`--artifact-dir` 与 `--no-maximize`；`prepare` 要求 `--spec-file` 和稳定的 `--idempotency-key`，并支持相同的可选参数；`status`、`publish-reviewed` 与 `reconcile` 都要求 `--run-id`。同一次岗位发布意图必须复用同一 `idempotency_key`，同一键不能绑定不同岗位内容。`prepare` 只填写并回读，`publish-reviewed` 才会产生最终外部提交；已成功或进入 `SUBMITTING` / `COMMIT_UNKNOWN` 的运行不得重新准备或再次发布，结果不确定时只能调用 `reconcile`。
-
 ## 使用示例
 
 安装后，可以通过自然语言描述任务，或在支持显式 Skill 调用的智能体中指定 Skill 标识符。下面以 `$skill-name` 形式展示调用示例；实际触发语法以所用智能体为准：
+
+```text
+$boss-job-publishing 根据我提供的完整岗位信息发布一个实习岗位。
+```
 
 ```text
 $boss-candidate-scoring 评估“产品运营实习生”岗位的新招呼候选人。
@@ -159,10 +163,6 @@ $boss-candidate-messaging 查看“前端开发实习生”岗位的未读会话
 
 ```text
 $boss-resume-request-collection 检查指定候选人是否已经发送简历；如果已发送，下载并解析原始附件。
-```
-
-```text
-$boss-job-publishing 根据我提供的完整岗位信息发布一个实习岗位。
 ```
 
 ## 示例文件
