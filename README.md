@@ -77,6 +77,10 @@ $boss-job-publishing 根据我提供的完整岗位信息发布一个实习岗�
 
 ## 岗位发布示例
 
+下面是 `$boss-job-publishing` 可读取的岗位信息输入示例，包含招聘类型、岗位名称、职位要求、学历、薪资、实习周期和电话交换助手设置。
+
+[![BOSS 直聘文案策划实习岗位发布输入示例](./examples/job-publishing/BOSS直聘桌面端-文案策划｜岗位发布-输入模范.png)](./examples/job-publishing/BOSS直聘桌面端-文案策划｜岗位发布-输入模范.png)
+
 下面展示 `$boss-job-publishing` 完成结构化填写、逐字段回读、最终发布和结果核验后的输出示例。示例岗位为“文案策划”实习职位，图片包含发布字段、原格式职位描述、逐项校验结果和发布成功状态。
 
 [![BOSS 直聘文案策划实习岗位发布成功示例](./examples/job-publishing/BOSS直聘桌面端-文案策划｜岗位发布.png)](./examples/job-publishing/BOSS直聘桌面端-文案策划｜岗位发布.png)
