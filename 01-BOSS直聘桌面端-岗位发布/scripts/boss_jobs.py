@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Any
 
 
-EXPECTED_VERSION = "0.4.3"
-EXPECTED_BUILD_ID = "boss-job-publishing-20260731-semantic-publish-v5"
-EXPECTED_SELECTOR_PROFILE = "boss-1.7.4.963-native-uia-semantic-publish-v5"
+EXPECTED_VERSION = "0.8.0"
+EXPECTED_BUILD_ID = "boss-job-publishing-20260812-internship-social-campus-parttime-v1"
+EXPECTED_SELECTOR_PROFILE = "boss-1.7.4.963-native-uia-four-recruitment-v1"
 
 
 def runtime() -> tuple[Any, dict[str, str]]:

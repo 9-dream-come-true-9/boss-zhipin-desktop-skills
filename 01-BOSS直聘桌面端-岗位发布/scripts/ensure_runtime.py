@@ -13,11 +13,11 @@ from pathlib import Path
 
 
 PACKAGE_NAME = "boss-zhipin-automation"
-PACKAGE_VERSION = "0.4.3"
-WHEEL_NAME = "boss_zhipin_automation-0.4.3-py3-none-any.whl"
-WHEEL_SHA256 = "941051ad7051df67266c9cf49170be67f829920f5669d5890dbabd5dfd0dbbee"
-EXPECTED_BUILD_ID = "boss-job-publishing-20260731-semantic-publish-v5"
-EXPECTED_SELECTOR_PROFILE = "boss-1.7.4.963-native-uia-semantic-publish-v5"
+PACKAGE_VERSION = "0.8.0"
+WHEEL_NAME = "boss_zhipin_automation-0.8.0-py3-none-any.whl"
+WHEEL_SHA256 = "fa0fbf1ed0bb9ec31730dfd55af55e6344f4ca4fdda919e236e2c338ab050ce9"
+EXPECTED_BUILD_ID = "boss-job-publishing-20260812-internship-social-campus-parttime-v1"
+EXPECTED_SELECTOR_PROFILE = "boss-1.7.4.963-native-uia-four-recruitment-v1"
 REQUIRED_MODULES = ("pywinauto", "psutil", "PIL", "win32api", "win32gui", "comtypes")
 
 

@@ -11,10 +11,10 @@
 
 | Skill | 标识符 | 主要能力 |
 | --- | --- | --- |
-| [岗位发布](./01-BOSS直聘桌面端-岗位发布/) | `boss-job-publishing` | 填写、回读核验并发布 BOSS 直聘实习岗位，以及核对结果不确定的提交 |
+| [岗位发布](./01-BOSS直聘桌面端-岗位发布/) | `boss-job-publishing` | 填写、回读核验并发布实习生招聘、社招全职、应届校园招聘和兼职招聘岗位，以及核对结果不确定的提交 |
 | [候选人初评分](./02-BOSS直聘桌面端-候选人初评分/) | `boss-candidate-scoring` | 读取指定岗位要求，仅从“消息”入口采集候选人，并进行有证据边界的初步评分 |
-| [候选人打招呼和消息交互](./03-BOSS直聘桌面端-候选人打招呼和消息交互/) | `boss-candidate-messaging` | 岗位筛选、候选人和会话读取、语义翻页、会话检查、已验证消息发送与批量编排 |
-| [索要与收取简历](./04-BOSS直聘桌面端-索要与收取简历能力/) | `boss-resume-request-collection` | 请求简历、发送普通邀请、接收与下载附件、文件校验、哈希计算及 PDF/DOCX 解析 |
+| [候选人打招呼和消息交互](./03-BOSS直聘桌面端-候选人打招呼和消息交互/) | `boss-candidate-messaging` | 根据上传文档回复消息、在消息页批量发信息、在推荐页批量打招呼，以及给指定联系人发信息 |
+| [索要与收取简历](./04-BOSS直聘桌面端-索要与收取简历能力/) | `boss-resume-request-collection` | 通过平台主动索要或普通消息索要简历、同意待处理附件请求，并下载候选人已发送的原始简历 |
 
 ## 运行环境
 
@@ -60,12 +60,19 @@ Copy-Item -LiteralPath '.\04-BOSS直聘桌面端-索要与收取简历能力' `
 ### 岗位发布
 
 1. `open_publish_form()` / `open-form`：进入并确认岗位发布表单已就绪，不填写字段、不点击最终发布。
-2. `prepare_job_post()` / `prepare`：根据用户提供的实习岗位信息填写招聘类型、岗位名称、职位描述、学历、日薪、实习要求、账号地址和电话助手，并逐字段回读确认；本步骤不执行最终发布。
+2. `prepare_job_post()` / `prepare`：根据 `recruitment_type` 填写四类岗位共用字段及对应的专属字段，并逐字段回读确认；本步骤不执行最终发布。
 3. `get_run_status()` / `status`：查看本次岗位填写、字段核验、警告和提交状态。
 4. `publish_reviewed_job()` / `publish-reviewed`：在全部字段核验一致后执行一次最终发布，并返回发布结果。
 5. `reconcile_job_post()` / `reconcile`：当最终提交结果不确定时，只读核对是否发布成功，不重复点击发布。
 
-该流程只支持实习生招聘；`prepare` 负责填写和核验，`publish-reviewed` 才会执行最终发布。
+四类岗位的专属字段如下：
+
+- 实习生招聘：学历、日薪、实习月数和每周到岗天数。
+- 社招全职：经验、学历和月薪。
+- 应届校园招聘：固定“在校/应届”经验、学历、月薪和毕业时间。
+- 兼职招聘：经验、学历、结算方式、薪资单位及区间、兼职周期、工作时段、每周天数、班次和招聘截止日期。
+
+四种招聘类型共用“进入表单 → 填写并回读 → 查看状态 → 单次发布 → 结果不确定时只读核对”的安全流程；`prepare` 负责填写和核验，`publish-reviewed` 才执行最终发布。
 
 ### 候选人初评分
 
@@ -78,60 +85,41 @@ Copy-Item -LiteralPath '.\04-BOSS直聘桌面端-索要与收取简历能力' `
 
 #### 打招呼
 
-1. `open_surface()` / `open-surface`：打开 BOSS“推荐”页面，不执行后续候选人操作。
-2. `select_job()` / `select-job`：在推荐页精确选择需要处理的岗位，并回读确认。
-3. `list_candidate_cards()` / `list-candidates`：查看推荐页当前已加载的候选人及其可沟通状态。
-4. `open_candidate_card()` / `open-candidate`：打开选定候选人；如果仍处于“打招呼”状态，会先触发平台默认招呼，再进入会话。
-5. `greet_one()` / `greet-one`：在指定岗位下为一个可沟通候选人发送平台默认招呼，并继续发送用户提供的自定义消息。
-6. `batch_greet()` / `batch-greet`：对指定岗位的一批可招呼候选人执行“平台默认招呼 + 自定义消息”。
-7. `advance_list()` / `advance-list`：继续加载推荐候选人列表的下一段内容，不自动打开或发送。
-
-当前版本的 `batch-greet --limit` 可能在消息已经发出后于汇总阶段报错，因此不得因为最终报错而自动重发。
+1. `batch_greet()` / `batch-greet`：在 BOSS“推荐”页精确选择岗位，向尚未沟通的候选人批量发送“平台默认招呼 + 自定义消息”；可通过 `--limit` 处理 1–50 人，或通过 `--all` 处理当前可发现对象并受 200 人安全上限约束。
 
 #### 消息交互
 
-1. `open_surface()` / `open-surface`：打开 BOSS“消息”页面，不执行后续会话操作。
-2. `select_job()` / `select-job`：在消息页精确选择需要处理的岗位，并回读确认。
-3. `list_message_rows()` / `list-conversations`：查看消息页当前已加载的候选人会话和消息预览。
-4. `open_message_runtime()` / `open-conversation`：打开选定会话，并确认候选人、岗位和聊天窗口已经就绪。
-5. `inspect_current_chat()` / `inspect-chat`：只读查看当前联系人、岗位和已加载的聊天消息。
-6. `send_current()` / `send-current`：向当前已打开且核验一致的候选人会话发送一条自定义消息。
-7. `advance_list()` / `advance-list`：继续加载消息会话列表的下一段内容，不自动打开或发送。
-8. `open_next_unread()` / `open-next-unread`：打开指定岗位当前可处理的第一个未读候选人会话。
-9. `open_conversation_exact()` / `open-conversation-exact`：根据岗位、联系人和完整最新消息打开并核验唯一会话。
-10. `reply_current()` / `reply-current`：确认仍处于指定会话后发送本次回复。
-11. `batch_message()` / `batch-message`：从指定岗位的消息列表顶部开始遍历现有会话，并向符合条件的候选人批量发送同一消息，同时避免重复发送。
+1. `parse-docs`：解析用户本次上传的问题规则 DOCX 和回答依据 DOCX；文档缺失或仍为空白模板时停止，不继续回复。
+2. `open_next_unread()` / `open-next-unread`：打开指定岗位的下一条未读会话，返回本次会话标识和候选人的最新消息。
+3. `reply_current()` / `reply-current`：确认当前会话没有切换后，发送根据上传文档生成的有依据回复；文档没有依据或内容冲突时转人工处理，不发送。
+4. `batch_message()` / `batch-message`：在 BOSS“消息”页的精确岗位下，向已有会话批量发送同一条信息；支持限定数量或处理全部可发现会话，并通过持久化账本避免重复发送。
+5. `send_message_to_contact()` / `send-to-contact`：按联系人完整姓名进行精确搜索，回读会话标题一致后发送一条信息。
 
-所有自定义消息都会在发送前回读正文，并在发送后验证新消息。
+前三项组成“根据上传文档回复消息”的完整流程。所有消息都会在发送前核验对象和正文，并在发送后验证新消息；发送结果不确定时不会自动重发。
 
 ### 索要与收取简历
 
 #### 主动索要
 
-1. `inspect_state()` / `inspect-state`：只读检查是否已向指定候选人发送平台简历请求、是否有待同意的附件请求，以及是否已经收到简历附件。
-2. `request_platform()` / `request-platform`：点击 BOSS 平台“求简历”向指定候选人发起请求，并验证“简历请求已发送”；该方式可能消耗平台次数。
+1. `request_platform()` / `request-platform`：点击 BOSS 平台“求简历”向指定候选人发起请求，并验证“简历请求已发送”；该方式可能消耗平台次数。
 
 #### 主动发消息索要
 
-1. `inspect_state()` / `inspect-state`：只读检查是否已向指定候选人发送平台简历请求、是否有待同意的附件请求，以及是否已经收到简历附件。
-2. `request_message()` / `request-message`：向指定候选人发送普通简历邀请消息，不点击平台“求简历”，也不消耗平台求简历次数。
-3. `accept_pending_attachment()` / `accept-pending`：候选人发起待处理的附件请求后，单次点击“同意”，并确认简历附件消息已经出现。
+1. `request_message()` / `request-message`：向指定候选人发送普通简历邀请消息，不点击平台“求简历”，也不消耗平台求简历次数。
 
-两种索要方式共用以下收取流程：
+#### 收取简历
 
-1. `download_received()` / `download-received`：将候选人已经发送的原始 PDF/DOCX 简历下载到用户指定目录，并确认下载文件有效。
-2. `validate_file()` / `validate-file`：检查一个本地简历文件是否存在、非空，并且确实是与扩展名一致的 PDF 或 DOCX。
-3. `parse_file()` / `parse-file`：校验并解析一个本地 PDF/DOCX 简历，返回解析是否成功及可读取内容规模。
-4. `collect`：快捷执行“下载已收到的简历 → 校验原文件 → 解析”；没有附件时返回未收到，不会自动索要或自动同意附件。
+1. `accept_pending_attachment()` / `accept-pending`：当候选人发起待处理的附件请求时，单次点击“同意”并验证简历附件消息出现；平台主动索要和普通消息索要后都可能需要单独执行该能力。
+2. `download_received()` / `download-received`：将候选人已经发送的原始 PDF/DOCX 简历下载到用户指定目录，并校验下载文件。
 
-`request-platform` 和 `request-message` 是二选一，不需要连续执行。用户只说“要简历”而未指定方式时，需要先选择其中一种。所有提交动作只执行一次；结果不确定时不会自动重试。
+以上四项是彼此独立的业务能力，不是固定的必经链路。`request-platform` 和 `request-message` 是二选一；用户只说“要简历”而未指定方式时，需要先选择其中一种。只读状态检查、文件校验和解析由智能体按任务需要作为内部辅助调用。所有提交动作只执行一次；结果不确定时不会自动重试。
 
 ## 使用示例
 
 安装后，可以通过自然语言描述任务，或在支持显式 Skill 调用的智能体中指定 Skill 标识符。下面以 `$skill-name` 形式展示调用示例；实际触发语法以所用智能体为准：
 
 ```text
-$boss-job-publishing 根据我提供的完整岗位信息发布一个实习岗位。
+$boss-job-publishing 根据我提供的完整岗位信息发布一个岗位，招聘类型为社招全职。
 ```
 
 ```text
@@ -139,11 +127,11 @@ $boss-candidate-scoring 评估“产品运营实习生”岗位的新招呼候�
 ```
 
 ```text
-$boss-candidate-messaging 查看“前端开发实习生”岗位的未读会话，并根据我提供的话术回复。
+$boss-candidate-messaging 根据我上传的问答文档，处理“前端开发实习生”岗位的下一条未读会话，并回复有直接依据的问题。
 ```
 
 ```text
-$boss-resume-request-collection 检查指定候选人是否已经发送简历；如果已发送，下载并解析原始附件。
+$boss-resume-request-collection 使用普通消息向指定候选人索要简历，不消耗平台求简历次数。
 ```
 
 ## 示例文件

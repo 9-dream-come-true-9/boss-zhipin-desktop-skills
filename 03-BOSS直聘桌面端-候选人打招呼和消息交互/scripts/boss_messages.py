@@ -1,4 +1,12 @@
-"""Fixed pywinauto/UIA runner for BOSS candidate messaging."""
+"""Fixed pywinauto/UIA runner for BOSS candidate messaging.
+
+对外固定 4 个业务能力：
+  能力一 根据上传文档回消息      parse-docs + open-next-unread + reply-current
+  能力二 消息页批量发信息        batch-message
+  能力三 推荐页批量打招呼        batch-greet
+  能力四 给指定人发信息          send-to-contact
+其余命令为内部实现命令，不作为对外功能颗粒度。"""
+
 from __future__ import annotations
 import argparse, hashlib, json, os, shutil, sys, time
 from pathlib import Path
@@ -414,7 +422,7 @@ def batch_greet(job, message, limit=None, process_all=False):
                 fail("BATCH_STOPPED_UNCERTAIN","batch stopped without retry",completed=results,error=detail)
             fail("BATCH_STOPPED","batch stopped",completed=results,error=detail)
     if process_all:fail("BATCH_SAFETY_CEILING","stopped at safety ceiling",completed=results)
-    return {"status":"COMPLETED","mode":"limit","requested":limit,"completed":len(results),"skipped_already_sent":len(skipped_ledger),"results":results}
+    return {"status":"COMPLETED","mode":"limit","requested":limit,"completed":len(results),"results":results}
 
 def conversation_cards(w):
     cards=[]
@@ -475,13 +483,18 @@ def message_conversation_rows(w):
     return rows
 
 def current_chat_identity(w):
-    nodes=[c for c in w.descendants(control_type="Text") if c.is_visible() and 1170<c.rectangle().left<1900 and c.rectangle().top<180 and c.rectangle().height()>40 and normalize(c.window_text())]
+    """Read the chat title using window-relative geometry."""
+    wr=w.rectangle(); rows=visible_message_rows(w)
+    pane_right=max((x.rectangle().right for x in rows),default=wr.left+500)
+    nodes=[]
+    for c in w.descendants(control_type="Text"):
+        try:
+            r=c.rectangle(); value=normalize(c.window_text())
+            if c.is_visible() and value and pane_right<r.left<wr.right-150 and wr.top<r.top<wr.top+105 and r.height()>=15:nodes.append(c)
+        except Exception:pass
     if not nodes:fail("CHAT_IDENTITY_NOT_EXACT","chat title is absent")
-    # Chromium may expose a Chinese name as one Text node or one node per glyph.
-    nodes=sorted(nodes,key=lambda c:c.rectangle().left)
-    first_top=nodes[0].rectangle().top
-    line=[c for c in nodes if abs(c.rectangle().top-first_top)<=2]
-    identity="".join(normalize(c.window_text()) for c in line)
+    nodes=sorted(nodes,key=lambda c:(c.rectangle().top,c.rectangle().left));first_top=nodes[0].rectangle().top
+    identity="".join(normalize(c.window_text()) for c in nodes if abs(c.rectangle().top-first_top)<=3)
     if not identity:fail("CHAT_IDENTITY_NOT_EXACT",f"chat title count={len(nodes)}")
     return identity
 
@@ -686,6 +699,53 @@ def advance_list(surface):
         return advance_message_list(w,known)
     fail("INVALID_SURFACE",f"unsupported surface: {surface}")
 
+def open_contact_search(w=None):
+    """Open message-page contact search without fixed screen coordinates."""
+
+    if w is None:open_surface("message");w=window()
+    wr=w.rectangle()
+    existing=[e for e in w.descendants(control_type="Edit") if e.is_visible() and normalize(e.window_text())=="搜索姓名/群聊"]
+    if len(existing)==1:return w,existing[0]
+    if len(existing)>1:fail("CONTACT_SEARCH_NOT_UNIQUE",f"search edit count={len(existing)}")
+    rows=visible_message_rows(w);pane_right=max((x.rectangle().right for x in rows),default=0)
+    if not pane_right:
+        editors=[c for c in w.descendants(control_type="Group") if c.is_visible() and c.element_info.automation_id in INPUT_AIDS]
+        if len(editors)==1:pane_right=editors[0].rectangle().left-7
+    anchors=[c for c in w.descendants(control_type="Text") if c.is_visible() and wr.top<c.rectangle().top<wr.top+100 and wr.left+120<c.rectangle().left<wr.left+520 and (normalize(c.window_text())=="全部职位" or "_" in normalize(c.window_text()))]
+    if len(anchors)!=1:fail("CONTACT_SEARCH_ANCHOR_NOT_UNIQUE",f"job anchor count={len(anchors)}")
+    if not pane_right:fail("CONTACT_LIST_UNAVAILABLE","no visible conversation rows for pane geometry")
+    ar=anchors[0].rectangle();w.click_input(coords=(pane_right-31-wr.left,(ar.top+ar.bottom)//2-wr.top));time.sleep(.35)
+    current=window();edits=[e for e in current.descendants(control_type="Edit") if e.is_visible() and normalize(e.window_text())=="搜索姓名/群聊"]
+    if len(edits)!=1:fail("CONTACT_SEARCH_NOT_READY",f"search edit count={len(edits)}")
+    return current,edits[0]
+
+def open_contact_by_exact_name(contact_name,timeout=8):
+    """Search one exact contact name and open its chat, with title verification."""
+    requested=normalize(contact_name)
+    if not requested:fail("CONTACT_NAME_REQUIRED","contact name is empty")
+    _,keyboard,_=deps();w,search=open_contact_search();search.click_input();keyboard.send_keys("^a{BACKSPACE}",pause=.02);keyboard.send_keys(requested,with_spaces=True,pause=.02)
+    deadline=time.time()+timeout;header=None
+    while time.time()<deadline:
+        current=window();docs=" ".join(normalize(c.window_text()) for c in current.descendants(control_type="Document"));headers=[c for c in current.descendants(control_type="Text") if c.is_visible() and normalize(c.window_text())=="联系人"]
+        if requested in docs and headers:header=headers[0];w=current;break
+        time.sleep(.25)
+    if header is None:fail("CONTACT_NOT_FOUND","no contact result for exact name",contact=requested)
+    wr=w.rectangle();sr=search.rectangle();hr=header.rectangle();w.click_input(coords=((sr.left+sr.right)//2-wr.left,hr.bottom+40-wr.top));time.sleep(.7)
+    deadline=time.time()+timeout
+    while time.time()<deadline:
+        current=window();editors=[c for c in current.descendants(control_type="Group") if c.is_visible() and c.element_info.automation_id in INPUT_AIDS];title_nodes=[c for c in current.descendants(control_type="Text") if c.is_visible() and normalize(c.window_text())==requested]
+        if len(editors)==1 and title_nodes:
+            actual=current_chat_identity(current)
+            if actual!=requested:fail("CONTACT_IDENTITY_MISMATCH","opened chat title differs",expected=requested,actual=actual)
+            return {"status":"OPENED","identity":actual}
+        time.sleep(.25)
+    fail("CONTACT_CONVERSATION_NOT_READY","contact result did not open",contact=requested)
+
+def send_message_to_contact(contact_name,message):
+    """Exact-name search, verified open, then one verified send."""
+    opened=open_contact_by_exact_name(contact_name);sent=semantic_write_and_send(message)
+    return {"status":"SENT_VERIFIED","identity":opened["identity"],**sent}
+
 def doc_text(path):
     _,_,Document=deps();d=Document(path);return [p.text.strip() for p in d.paragraphs if p.text.strip()]
 
@@ -697,24 +757,31 @@ def parse_runtime_id(value):
     except Exception as exc:fail("INVALID_RUNTIME_ID",str(exc))
 
 def main():
-    p=argparse.ArgumentParser();subs=p.add_subparsers(dest="cmd",required=True)
-    subs.add_parser("inspect")
-    d=subs.add_parser("parse-docs");d.add_argument("--question-docx",required=True);d.add_argument("--answer-docx",required=True)
-    op=subs.add_parser("open-surface");op.add_argument("--surface",choices=["recommend","message"],required=True)
-    sj=subs.add_parser("select-job");sj.add_argument("--surface",choices=["recommend","message"],required=True);sj.add_argument("--job",required=True)
-    subs.add_parser("list-candidates")
-    oc=subs.add_parser("open-candidate");oc.add_argument("--runtime-id",required=True);oc.add_argument("--keep-notice",action="store_true")
-    subs.add_parser("list-conversations")
-    om=subs.add_parser("open-conversation");om.add_argument("--runtime-id",required=True);om.add_argument("--expected-job")
-    subs.add_parser("inspect-chat")
-    sc=subs.add_parser("send-current");sc.add_argument("--message-file",required=True);sc.add_argument("--expected-identity");sc.add_argument("--expected-job")
-    al=subs.add_parser("advance-list");al.add_argument("--surface",choices=["recommend","message"],required=True)
-    g=subs.add_parser("greet-one");g.add_argument("--job",required=True);g.add_argument("--message-file",required=True)
-    b=subs.add_parser("batch-greet");b.add_argument("--job",required=True);b.add_argument("--message-file",required=True);mode=b.add_mutually_exclusive_group(required=True);mode.add_argument("--limit",type=int);mode.add_argument("--all",action="store_true",dest="process_all")
-    m=subs.add_parser("batch-message");m.add_argument("--job",required=True);m.add_argument("--message-file",required=True);mm=m.add_mutually_exclusive_group(required=True);mm.add_argument("--limit",type=int);mm.add_argument("--all",action="store_true",dest="process_all")
-    u=subs.add_parser("open-next-unread");u.add_argument("--job",required=True)
-    x=subs.add_parser("open-conversation-exact");x.add_argument("--job",required=True);x.add_argument("--contact-name",required=True);x.add_argument("--latest-message",required=True)
-    r=subs.add_parser("reply-current");r.add_argument("--conversation-id",required=True);r.add_argument("--reply-file",required=True)
+    p=argparse.ArgumentParser(description="BOSS candidate messaging runner: 4 business capabilities (按文档回消息 / 消息页批量发信息 / 推荐页批量打招呼 / 给指定人发信息) plus internal implementation commands.")
+    subs=p.add_subparsers(dest="cmd",required=True)
+    subs.add_parser("inspect",help="使用前检查：运行环境与 UIA 可读性")
+    # 能力一：根据上传文档回消息（3 个步骤命令）
+    d=subs.add_parser("parse-docs",help="能力一·步骤1：解析本次上传的问题/回答文档");d.add_argument("--question-docx",required=True);d.add_argument("--answer-docx",required=True)
+    u=subs.add_parser("open-next-unread",help="能力一·步骤2：打开指定岗位的下一条未读会话");u.add_argument("--job",required=True)
+    r=subs.add_parser("reply-current",help="能力一·步骤3：生成并发送有依据的回复");r.add_argument("--conversation-id",required=True);r.add_argument("--reply-file",required=True)
+    # 能力二：批量在消息页面发信息
+    m=subs.add_parser("batch-message",help="能力二：消息页面向已有会话批量发信息");m.add_argument("--job",required=True);m.add_argument("--message-file",required=True);mm=m.add_mutually_exclusive_group(required=True);mm.add_argument("--limit",type=int);mm.add_argument("--all",action="store_true",dest="process_all")
+    # 能力三：批量在推荐页面打招呼
+    b=subs.add_parser("batch-greet",help="能力三：推荐页面向未沟通候选人批量打招呼");b.add_argument("--job",required=True);b.add_argument("--message-file",required=True);mode=b.add_mutually_exclusive_group(required=True);mode.add_argument("--limit",type=int);mode.add_argument("--all",action="store_true",dest="process_all")
+    # 能力四：给指定人发信息
+    sn=subs.add_parser("send-to-contact",help="能力四：给指定联系人发一条信息");sn.add_argument("--contact-name",required=True);sn.add_argument("--message-file",required=True)
+    # 内部实现命令（不作为对外功能颗粒度）
+    op=subs.add_parser("open-surface",help="内部实现：打开指定 surface");op.add_argument("--surface",choices=["recommend","message"],required=True)
+    sj=subs.add_parser("select-job",help="内部实现：在指定 surface 精确选择岗位");sj.add_argument("--surface",choices=["recommend","message"],required=True);sj.add_argument("--job",required=True)
+    subs.add_parser("list-candidates",help="内部实现：列出推荐页候选人卡片")
+    oc=subs.add_parser("open-candidate",help="内部实现：打开候选人卡片");oc.add_argument("--runtime-id",required=True);oc.add_argument("--keep-notice",action="store_true")
+    subs.add_parser("list-conversations",help="内部实现：列出消息页会话行")
+    om=subs.add_parser("open-conversation",help="内部实现：按 RuntimeId 打开消息会话");om.add_argument("--runtime-id",required=True);om.add_argument("--expected-job")
+    subs.add_parser("inspect-chat",help="内部实现：检查当前会话")
+    sc=subs.add_parser("send-current",help="内部实现：发送当前编辑器草稿");sc.add_argument("--message-file",required=True);sc.add_argument("--expected-identity");sc.add_argument("--expected-job")
+    al=subs.add_parser("advance-list",help="内部实现：推进消息/推荐列表");al.add_argument("--surface",choices=["recommend","message"],required=True)
+    g=subs.add_parser("greet-one",help="内部实现：对单个候选人打招呼");g.add_argument("--job",required=True);g.add_argument("--message-file",required=True)
+    x=subs.add_parser("open-conversation-exact",help="内部实现：按精确联系人+最新消息打开会话");x.add_argument("--job",required=True);x.add_argument("--contact-name",required=True);x.add_argument("--latest-message",required=True)
     a=p.parse_args()
     try:
         if a.cmd=="inspect":res={"status":"READY","descendants":len(window().descendants())}
@@ -730,6 +797,7 @@ def main():
         elif a.cmd=="open-conversation":res=open_message_runtime(parse_runtime_id(a.runtime_id),a.expected_job)
         elif a.cmd=="inspect-chat":res=inspect_current_chat()
         elif a.cmd=="send-current":res=send_current(Path(a.message_file).read_text(encoding="utf-8"),a.expected_identity,a.expected_job)
+        elif a.cmd=="send-to-contact":res=send_message_to_contact(a.contact_name,Path(a.message_file).read_text(encoding="utf-8"))
         elif a.cmd=="advance-list":res=advance_list(a.surface)
         elif a.cmd=="greet-one":res=greet_one(a.job,Path(a.message_file).read_text(encoding="utf-8"))
         elif a.cmd=="batch-greet":res=batch_greet(a.job,Path(a.message_file).read_text(encoding="utf-8"),a.limit,a.process_all)

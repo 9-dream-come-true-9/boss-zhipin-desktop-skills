@@ -1,2 +1,0 @@
-pywinauto>=0.6.9
-python-docx>=1.1.0

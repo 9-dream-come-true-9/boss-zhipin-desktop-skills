@@ -1,31 +1,24 @@
 ---
 name: boss-resume-request-collection
-description: 面向 BOSS 直聘 Windows 桌面端消息页的可组合 pywinauto/UIA 能力，用于请求简历、发送不消耗平台额度的普通邀请、检测已接收附件、下载原始文件、校验与计算哈希，以及解析 PDF/DOCX。
+description: 面向 BOSS 直聘 Windows 桌面端消息页的四项原子化 pywinauto/UIA 简历能力：通过平台主动索要、发送普通消息索要、同意候选人的待处理附件请求，以及下载已收到的简历；只读检查和文件校验或解析作为内部辅助能力。
 ---
 
 # BOSS 索要与收取简历能力集
 
-本 Skill 是**独立能力模块集合**，不是固定流程。Agent 只按用户当次指令调用最少模块；不得把“索要→等待→预览→下载→解析”固化为必经链路。
+本 Skill 对外封装 **4 个独立能力**，颗粒度固定为一能力一命令。Agent 按用户当次指令调用**且只调用**对应的一个能力；不得把“索要→等待→同意→下载→解析”固化为必经链路。辅助能力（只读检查、文件校验/解析）仅作为内部支撑，不单独作为业务步骤暴露。
 
-## 模块边界
+## 能力清单（4 个）
 
-1. `request_resume_by_platform`：消息编辑区上方点击唯一“求简历”，消耗平台次数。
-2. `request_resume_by_message`：只发送普通消息，默认逐字为“方便发送一份简历给我吗？”，不点击“求简历”、不消耗次数。
-3. `inspect_resume_state`：只读检查是否已求简历、是否有待同意附件请求、是否已有附件气泡。
-4. `accept_pending_resume_attachment`：只对候选人发起的唯一待处理附件请求点击一次“同意”；不索要、不发消息、不下载。
-5. `download_received_resume`：只下载候选人已经发送的原始附件；不索要、不发消息、不负责预览。
-6. `validate_resume_file`：只校验存在性、大小、真实格式、扩展名和 SHA-256。
-7. `parse_resume_file`：只解析已经校验的 PDF/DOCX；不修改原件、不执行宏或脚本。
-8. `collect_received_resume`：可选编排器，可组合“只读检查→同意待处理附件请求→附件检测→下载→校验→解析”；找不到附件返回 `NOT_RECEIVED`，绝不自动索要。
+| # | 能力 | 模块名 | CLI 命令 | 典型指令 |
+|---|------|--------|---------|---------|
+| 1 | 主动索要 | `request_platform()` | `request-platform` | “主动索要 / 点击求简历 / 可以消耗次数” |
+| 2 | 发消息索要 | `request_message()` | `request-message` | “发消息让他发简历 / 不消耗次数” |
+| 3 | 同意候选人待处理附件请求 | `accept_pending_attachment()` | `accept-pending` | “同意他的附件请求 / 允许他发简历” |
+| 4 | 下载简历 | `download_received()` | `download-received` | “下载 / 收取简历文件” |
 
-## 意图路由
+仅说“要简历”而没指明方式时，只询问一次二选一（能力 1 / 能力 2）；选择前零操作。
 
-- “发消息让他发简历 / 不消耗次数” → `request_resume_by_message`。
-- “主动索要 / 点击求简历 / 可以消耗次数” → `request_resume_by_platform`。
-- 仅说“要简历” → 只询问一次二选一；选择前零操作。
-- “检查/下载/收取简历” → 收取模块；不得触发任何索要。
-
-## 前置定位
+## 前置定位（4 个能力共享）
 
 所有 UI 操作仅在 BOSS Windows 桌面客户端的“消息”页执行：进入消息页 → 使用顶部岗位筛选器精确选择 `job_ref` → 在筛选后的当前会话列表中按候选人姓名直接定位并打开。
 
@@ -46,7 +39,7 @@ python "<skill_dir>\scripts\ensure_runtime.py"
 python "<skill_dir>\scripts\boss_resume.py" runtime
 ```
 
-## 平台主动求简历
+## 能力 1：主动索要（平台求简历）
 
 ```powershell
 python "<skill_dir>\scripts\boss_resume.py" request-platform --job "<exact_job>" --candidate "<candidate_name>" --request-id "<stable_id>"
@@ -62,7 +55,7 @@ python "<skill_dir>\scripts\boss_resume.py" request-platform --job "<exact_job>"
 - 点击后只接受新增“简历请求已发送”消息容器作为成功证据。
 - 点击后状态不确定则 `COMMIT_UNKNOWN`，不得重试。
 
-## 普通消息邀请
+## 能力 2：发消息索要（普通消息邀请）
 
 ```powershell
 python "<skill_dir>\scripts\boss_resume.py" request-message --job "<exact_job>" --candidate "<candidate_name>" --request-id "<stable_id>" [--message-file "<utf8.txt>"]
@@ -70,24 +63,22 @@ python "<skill_dir>\scripts\boss_resume.py" request-message --job "<exact_job>" 
 
 默认消息逐字为：`方便发送一份简历给我吗？`。只操作编辑器；发送前查请求账本与历史完全相同消息，提交后验证新 `mid-*` 容器。不得点击“求简历”。
 
-
-## 同意候选人发送附件
+## 能力 3：同意候选人待处理附件请求
 
 ```powershell
 python "<skill_dir>\scripts\boss_resume.py" accept-pending --job "<exact_job>" --candidate "<candidate_name>" [--request-message-id "<mid-id>"]
 ```
 
-- 普通消息邀请后，候选人可能先发送“对方想发送附件简历给您，您是否同意”，此时附件尚不能下载。
-- `inspect-state` 把同时含“拒绝”和“同意”且其后尚未出现附件消息的 `mid-*` 容器列入 `pending_attachment_requests`。实测同意后旧卡片可能仍可见，后续附件消息是已处理证据，必须防止二次点击。
-- 只有唯一待处理请求时，`accept-pending` 才解析该 `mid-*` ListItem 的固定结构：恰好一个文件 Image 与两个横向操作 Text；按“左拒绝 / 右同意”的位置关系选择右侧操作并回读角色。严禁在卡片内实时按名称查找“同意”；多个请求必须由 `request_message_id` 明确选择。
+- 能力 2 后候选人可能先发送“对方想发送附件简历给您，您是否同意”，此时附件尚不能下载；能力 1 平台索要后也可能出现待同意卡片。
+- 只读检查把同时含“拒绝”和“同意”且其后尚未出现附件消息的 `mid-*` 容器列入 `pending_attachment_requests`。实测同意后旧卡片可能仍可见，后续附件消息是已处理证据，必须防止二次点击。
+- 只有唯一待处理请求时，才解析该 `mid-*` ListItem 的固定结构：恰好一个文件 Image 与两个横向操作 Text；按“左拒绝 / 右同意”的位置关系选择右侧操作并回读角色。严禁在卡片内实时按名称查找“同意”；多个请求必须由 `request_message_id` 明确选择。
 - 点击后只接受新增“点击预览附件简历”消息容器作为 `ACCEPTED_VERIFIED` 证据。结果不确定时进入 `COMMIT_UNKNOWN`，不得重试。
-- 该能力独立于普通消息、平台求简历、下载和解析；用户只要求检查时不得自动同意。
+- 该能力独立于能力 1、2、4；用户只要求检查时不得自动同意。
 
-## 附件检查与下载
+## 能力 4：下载简历
 
 ```powershell
-python "<skill_dir>\scripts\boss_resume.py" inspect-state --job "<exact_job>" --candidate "<candidate_name>"
-python "<skill_dir>\scripts\boss_resume.py" download-received --job "<exact_job>" --candidate "<candidate_name>" --output-dir "<dir>"
+python "<skill_dir>\scripts\boss_resume.py" download-received --job "<exact_job>" --candidate "<candidate_name>" --output-dir "<dir>" [--attachment-message-id "<mid-id>"]
 ```
 
 - 附件证据是包含“点击预览附件简历”的 `mid-*` 消息气泡；该文字仅用于识别附件气泡，不作为单独“预览功能”暴露。
@@ -98,9 +89,17 @@ python "<skill_dir>\scripts\boss_resume.py" download-received --job "<exact_job>
 - 下载前后比较输出目录快照，只接受一个新 PDF/DOCX 原文件。多个附件必须由 `attachment_message_id` 明确选择。
 - 不点击右上角“附件简历”标签，不把简历预览当下载成功，不保存截图。
 
-## 文件校验与解析
+## 辅助能力（内部支撑，不单独作为业务步骤暴露）
+
+| 命令 | 用途 | 何时由 Agent 使用 |
+|------|------|------------------|
+| `inspect-state` | 只读检查：是否已求简历 / 是否有待同意附件请求 / 是否已有附件气泡 | 能力 3、4 的前置只读判断，或用户明确要求“检查一下” |
+| `validate-file` | 校验存在性、大小、真实格式、扩展名和 SHA-256 | 能力 4 下载后自动执行，结果随 `DOWNLOADED` 返回 |
+| `parse-file` | 解析已校验的 PDF/DOCX 文本；不修改原件、不执行宏或脚本 | 仅当用户明确要求提取简历文本时单独调用 |
+| `collect` | 可选编排：下载→校验→解析；找不到附件返回 `NOT_RECEIVED`，绝不自动索要或自动同意附件 | 仅当用户明确要求“收完整一份简历”时使用，默认不使用 |
 
 ```powershell
+python "<skill_dir>\scripts\boss_resume.py" inspect-state --job "<exact_job>" --candidate "<candidate_name>"
 python "<skill_dir>\scripts\boss_resume.py" validate-file --file "<path>"
 python "<skill_dir>\scripts\boss_resume.py" parse-file --file "<path>"
 python "<skill_dir>\scripts\boss_resume.py" collect --job "<exact_job>" --candidate "<candidate_name>" --output-dir "<dir>"
@@ -110,17 +109,14 @@ PDF 必须以 `%PDF-` 开头；DOCX 必须为 ZIP 且含 `[Content_Types].xml` �
 
 ## 批量
 
-`request_resumes(job_ref, candidate_refs, mode, request_id)` 只在 mode 明确时执行。同批默认统一模式；混合方式必须给出候选人→模式映射。平台提交一旦 `COMMIT_UNKNOWN` 立即停止批次。
+当前脚本不提供批量函数或批量 CLI。批量索要时，调用方必须先明确每位候选人使用能力 1 还是能力 2，再逐人调用对应的原子命令；平台提交一旦返回 `COMMIT_UNKNOWN`，立即停止后续调用。
 
 ## 安全约束
 
 - 禁止 OCR、截图识别、私有接口、绝对坐标、列表序号和模糊姓名匹配；岗位筛选后使用候选人姓名精确匹配。
-
 - 不关闭、重启或退出 BOSS。
-
 - 原子提交只调用一次；未知状态不重试。
-
-  运行状态与账本在 Skill 目录外的 `%LOCALAPPDATA%\CyberNuwa\boss-resume-request-collection`。
+- 运行状态与账本在 Skill 目录外的 `%LOCALAPPDATA%\CyberNuwa\boss-resume-request-collection`。
 
 ## 返回值
 

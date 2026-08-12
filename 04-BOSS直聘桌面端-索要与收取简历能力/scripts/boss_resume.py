@@ -1,4 +1,7 @@
-"""BOSS resume capability runner: atomic modules, no fixed workflow."""
+"""BOSS resume capability runner: 4 atomic capabilities, no fixed workflow.
+Capabilities: 1 request-platform(主动索要) 2 request-message(发消息索要)
+3 accept-pending(同意候选人待处理附件请求) 4 download-received(下载简历).
+Helpers kept internal: inspect-state / validate-file / parse-file / collect."""
 from __future__ import annotations
 import argparse, hashlib, json, os, time, zipfile
 from pathlib import Path
@@ -346,13 +349,27 @@ def parse_file(path):
   except Exception as e:fail('PARSE_FAILED',str(e))
  v.update({'resume_status':'PARSED','parse_status':'PARSED','text_length':len(text)});return v
 def main():
- p=argparse.ArgumentParser();sp=p.add_subparsers(dest='cmd',required=True);sp.add_parser('runtime')
- for name in ['inspect-state','request-platform','request-message','accept-pending','download-received','collect']:
-  x=sp.add_parser(name);x.add_argument('--job',required=True);x.add_argument('--candidate',required=True)
-  if name in ['request-platform','request-message']:x.add_argument('--request-id',required=True)
-  if name=='request-message':x.add_argument('--message-file')
-  if name=='accept-pending':x.add_argument('--request-message-id')
-  if name in ['download-received','collect']:x.add_argument('--output-dir',required=True);x.add_argument('--attachment-message-id')
+ p=argparse.ArgumentParser(description='BOSS resume capability runner: 4 atomic capabilities (request-platform / request-message / accept-pending / download-received) plus read-only and file helpers.')
+ sp=p.add_subparsers(dest='cmd',required=True)
+ sp.add_parser('runtime',help='检查运行环境')
+ def conv(name,desc,job=True,candidate=True,**kw):
+  x=sp.add_parser(name,help=desc)
+  if job:x.add_argument('--job',required=True)
+  if candidate:x.add_argument('--candidate',required=True)
+  for k,v in kw.items():
+   flag='--'+k.replace('_','-')
+   if v is True:x.add_argument(flag,required=True)
+   elif v is None:x.add_argument(flag)
+   else:x.add_argument(flag,**v)
+  return x
+ # 4 个对外能力（颗粒度固定为一能力一命令）
+ conv('request-platform','能力1 主动索要：点击唯一“求简历”并确认，消耗平台次数',request_id=True)
+ conv('request-message','能力2 发消息索要：发送普通消息邀请，不点击“求简历”、不消耗次数',request_id=True,message_file=None)
+ conv('accept-pending','能力3 同意候选人待处理附件请求：仅对唯一待处理请求点击“同意”',request_message_id=None)
+ conv('download-received','能力4 下载简历：下载候选人已发送的原始附件到 output-dir',output_dir=True,attachment_message_id=None)
+ # 辅助能力（内部支撑，不单独作为业务步骤暴露）
+ conv('inspect-state','辅助：只读检查是否已求简历/待同意/已有附件')
+ conv('collect','辅助（可选）：编排 下载→校验→解析；找不到附件返回 NOT_RECEIVED',output_dir=True,attachment_message_id=None)
  for name in ['validate-file','parse-file']:
   x=sp.add_parser(name);x.add_argument('--file',required=True)
  a=p.parse_args()
